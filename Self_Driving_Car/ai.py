@@ -1,7 +1,8 @@
 import numpy as np #for arrays
 import random #for randomness in samples from different batches
 import os #for loading and saving model
-import torch #used for PyTorch, which can handle dynamic graphs
+import torch
+import torch.nn as nn #used for PyTorch, which can handle dynamic graphs
 import torch.nn.functional as F #neural network library of PyTorch
 import torch.optim as optim #used for optimizations
 import torch.autograd as autograd
@@ -90,7 +91,7 @@ class Dqn():
     param poss_actions: number of neurons in output layer
     param gamma: learning rate for the q-learning model
     """
-    def __init__(self, input_size, poss_actions):
+    def __init__(self, input_size, poss_actions, gamma):
         self.gamma = gamma
         self.reward_window = [] #average of 100 rewards, should increase over time
         self.model = DriveMind(input_size, poss_actions) #instance of NN
@@ -106,7 +107,7 @@ class Dqn():
     """
     method: decides and returns which action to play
     param self: the referenced object
-    param state: the state on the basis of which q-value is computer and action is chosen
+    param state: the state on the basis of which q-value is computed and action is chosen
     """
     def select_action(self, state):
         probabilities = F.softmax(self.model(Variable(state, volatile = True))*7) #temperature = 7, higher temp, higher P(winning q value)
@@ -123,13 +124,13 @@ class Dqn():
     """
     def learn(self, batch_state, batch_next_state, batch_reward, batch_action):
         #batches from memory become the transitions
-        outputs = self.model(batch_state).gather(1, batch_action.unsqueeze(0)).squeeze(1) #unsqueeze: gather only chosen actions
+        outputs = self.model(batch_state).gather(1, batch_action.unsqueeze(1)).squeeze(1) #unsqueeze: gather only chosen actions
         next_outputs = self.model(batch_next_state).detach().max(1)[0] #next_outputs needed for target computation, extract max value action q value
         targets = self.gamma*next_outputs + batch_reward #accd to formula
         temporal_difference_loss = F.smooth_l1_loss(outputs, targets)
         self.optimizer.zero_grad() #used for back propagation, reinitialize each loop iteration
         temporal_difference_loss.backward(retain_variables = True)
-        self.optimizer.step[] #update weights / synapses
+        self.optimizer.step() #update weights / synapses
 
     """
     method: updates the neural network for every new state, returns a next action
@@ -141,13 +142,13 @@ class Dqn():
         #signal is signals from 3 sensors, state is signal itself plus orientation (+-)
         new_state = torch.Tensor(signal).float().unsqueeze(0)
         #need to update memory with new state
-        self.memory.push(self.last_state, new_state, torch.LongTensor([int(self.last_action)]), torch.LongTensor([float(self.last_reward)]))
+        self.memory.push((self.last_state, new_state, torch.LongTensor([int(self.last_action)]), torch.Tensor([self.last_reward])))
         action = self.select_action(new_state)
         
         #ensure 100 events have been reached and learning can begin
         if(len(self.memory.memory) > 100):
             #create batches for states, rewards and actions
-            batch_state, batch_next_state, batch_reward, batch_action = self.memory.sample(100)
+            batch_state, batch_next_state, batch_action, batch_reward = self.memory.sample(100)
             self.learn(batch_state, batch_next_state, batch_reward, batch_action)
         #last quantity updated
         self.last_action = action
@@ -159,7 +160,41 @@ class Dqn():
 
         if(len(self.reward_window) > 1000):
             del self.reward_window[0]
-        return action  
+        return action 
+
+############################## HELPERS ##################################
+    """
+    method: computes mean of all rewards in reward window
+    param self: the referenced object
+    """
+    def score(self):
+        return (sum(self.reward_window)/len(self.reward_window)+1) #+1 for robustness
+
+    """
+    method: save NN model
+    param self: the referenced object
+    """
+    def save(self):
+        #Store Model, Optimizer
+        torch.save({'state_dict': self.model.state_dict(), 
+                    'optimizer': self.optimizer.state_dict(),
+                    }, 'DriveMind_report.pth')
+
+    """
+    method: load NN model from .pth file
+    param self: the referenced object
+    """
+    def load(self):
+        if(os.path.isfile('DriveMind_report.pth')):
+            print("Loading DriveMind")
+            checkpoint = torch.load('DriveMind_report.pth')
+
+            #Update model and optimizer
+            self.model.load_state_dict(checkpoint['state_dict'])
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+            print("Done")
+        else:
+            print("No checkpoint file found!")
 ############################## NOTES ####################################
 
 """
