@@ -7,10 +7,6 @@ import torch.optim as optim #used for optimizations
 import torch.autograd as autograd
 from torch.autograd import Variable #variables used to store tensor and gradient in one
 
-#CREATE NN ARCHITECTURE:
-##NN is an object, so we need to build a class
-#FORWARD FUNCTION RETURNS Q VALUES FOR ACTIONS
-
 ## Class: The AI agent that drives the car
 class DriveMind(nn.Module): #inherits from nn.Module
 
@@ -30,9 +26,7 @@ class DriveMind(nn.Module): #inherits from nn.Module
         self.poss_actions = poss_actions
 
         #creating full connections between layers
-        #full connection: all neurons of one layer connected to all neurons of another layer
-        #params: no. on neurons in each layer (L and R)
-        
+        #params: no. of neurons in each layer (L and R)
         self.input_hidden_conn = nn.Linear(input_size, 30)
         self.hidden_output_conn = nn.Linear(30, poss_actions)
         #30 derived by experimentation, is number of neurons in Hidden Layer. Experiment with this, see AI behavior
@@ -79,9 +73,9 @@ class RevisitMemory(object):
     param sample_size: size of sample to be returned
     """
     def sample(self, sample_size):
-        #use random library method to randomly extract a sample of certain size from memory
-        samples = zip(*random.sample(self.memory, sample_size))
 
+        #randomly extract a sample of certain size from memory
+        samples = zip(*random.sample(self.memory, sample_size))
         #FORMAT: STATE, ACTION, REWARD
         #take samples, concatenate wrt first dimension, map to PyTorch variables
         return map(lambda x: Variable(torch.cat(x, 0)), samples)
@@ -89,7 +83,6 @@ class RevisitMemory(object):
 
 ## Class: Implement Deep Q learning model
 class Dqn():
-
     """
     method: constructor
     param self: reference to the object
@@ -116,12 +109,6 @@ class Dqn():
     param state: the state on the basis of which q-value is computer and action is chosen
     """
     def select_action(self, state):
-        #Softmax generates distributed probabilities to all Q-values, which depend on input state
-        #Q values derived from NN, which takes state as input and computes Q values
-        #probs of all q values
-        #Tensors are wrapped into a variable which contain a gradient
-        #volatile = True excludes gradient from graph, saves memory and increases performance
-        #temperature is about the certainty with which we decide our action
         probabilities = F.softmax(self.model(Variable(state, volatile = True))*7) #temperature = 7, higher temp, higher P(winning q value)
         action = probabilities.multinomial()
         return action.data[0,0]
@@ -155,13 +142,47 @@ class Dqn():
         new_state = torch.Tensor(signal).float().unsqueeze(0)
         #need to update memory with new state
         self.memory.push(self.last_state, new_state, torch.LongTensor([int(self.last_action)]), torch.LongTensor([float(self.last_reward)]))
+        action = self.select_action(new_state)
+        
+        #ensure 100 events have been reached and learning can begin
+        if(len(self.memory.memory) > 100):
+            #create batches for states, rewards and actions
+            batch_state, batch_next_state, batch_reward, batch_action = self.memory.sample(100)
+            self.learn(batch_state, batch_next_state, batch_reward, batch_action)
+        #last quantity updated
+        self.last_action = action
+        self.last_state = new_state
+        self.last_reward = reward
 
+        #update batch window
+        self.reward_window.append(reward)
 
+        if(len(self.reward_window) > 1000):
+            del self.reward_window[0]
+        return action  
 ############################## NOTES ####################################
 
 """
+NN is an object, so we need to build a class
+FORWARD FUNCTION RETURNS Q VALUES FOR ACTIONS
+
 To create a fake dimension for a batch, use the unsqueeze method. The fake dimension for
 a batch is zero.
 
+numpy: for arrays
+random: for randomness in samples from different batches
+os: for loading and saving model
+torch: PyTorch, which can handle dynamic graphs
+torch.nn.functional: neural network library of PyTorch
+optim: used for optimizations
+Variable: variables used to store tensor and gradient in one
 
+full connection: all neurons of one layer connected to all neurons of another layer
+
+Softmax generates distributed probabilities to all Q-values, which depend on input state
+Q values derived from NN, which takes state as input and computes Q values
+probs of all q values
+Tensors are wrapped into a variable which contain a gradient
+volatile = True excludes gradient from graph, saves memory and increases performance
+temperature is about the certainty with which we decide our action       
 """
