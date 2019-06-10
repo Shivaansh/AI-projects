@@ -1,0 +1,27 @@
+def learn(self, batch_state, batch_next_state, batch_reward, batch_action): This is our function and parameters setting up our transition for DQN. We need transitions to work with the batches due to the current setup.
+
+outputs = self.model(batch_state).gather(1, batch_action.unsqueeze(1)).squeeze(1) This is to return the outputs of the batch state and we need to use gather due to needing the chosen actions, and unsqueeze/squeeze to work with the dimensions.
+
+next_outputs = self.model(batch_next_state).detach().max(1)[0]
+
+We need next_outputs due to the targets
+
+target = self.gamma*next_outputs + batch_reward
+
+setting up the computation for our targets
+
+td_loss = F.smooth_l1_loss(outputs, target)
+
+Since we have our targets we can now compute the temporal difference (td_loss), and the loss function from the function module in PyTorch.
+
+self.optimizer.zero_grad()
+
+We have to update the weights with stochastic gradient descent, and we are using the adam optimizer to apply it to update the weights. It needs to be re-initialized though at each iteration and zero_grad is used for this
+
+    td_loss.backward(retain_variables = True)# applying backprop
+
+self.optimizer.step()
+
+To finish we update the weights and use the .step function to update the weights.
+
+

@@ -152,6 +152,7 @@ class Game(Widget):
         orientation = Vector(*self.car.velocity).angle((xx,yy))/180.
         last_signal = [self.car.signal1, self.car.signal2, self.car.signal3, orientation, -orientation] # - ensures explore in both directions
         #action is output of NN. last_reward obtained, last_signal of all 3 sensors + orientation wrt goal
+        #brain is an instance of Dqn class
         action = brain.update(last_reward, last_signal) #action to play decided here
         scores.append(brain.score())
         rotation = action2rotation[action]

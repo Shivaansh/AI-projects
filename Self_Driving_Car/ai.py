@@ -111,8 +111,57 @@ class Dqn():
         self.last_reward = 0.0
 
     """
-    method: decides which action to play
+    method: decides and returns which action to play
     param self: the referenced object
-    param : 
+    param state: the state on the basis of which q-value is computer and action is chosen
     """
-    def select_action(self, ):
+    def select_action(self, state):
+        #Softmax generates distributed probabilities to all Q-values, which depend on input state
+        #Q values derived from NN, which takes state as input and computes Q values
+        #probs of all q values
+        #Tensors are wrapped into a variable which contain a gradient
+        #volatile = True excludes gradient from graph, saves memory and increases performance
+        #temperature is about the certainty with which we decide our action
+        probabilities = F.softmax(self.model(Variable(state, volatile = True))*7) #temperature = 7, higher temp, higher P(winning q value)
+        action = probabilities.multinomial()
+        return action.data[0,0]
+
+    """
+    method: implements forward and back propagation
+    param self: the referenced object
+    param batch_state: current state batch
+    param batch_next_state: next state batch
+    param batch_reward: current state reward batch
+    param batch_action: current state action batch
+    """
+    def learn(self, batch_state, batch_next_state, batch_reward, batch_action):
+        #batches from memory become the transitions
+        outputs = self.model(batch_state).gather(1, batch_action.unsqueeze(0)).squeeze(1) #unsqueeze: gather only chosen actions
+        next_outputs = self.model(batch_next_state).detach().max(1)[0] #next_outputs needed for target computation, extract max value action q value
+        targets = self.gamma*next_outputs + batch_reward #accd to formula
+        temporal_difference_loss = F.smooth_l1_loss(outputs, targets)
+        self.optimizer.zero_grad() #used for back propagation, reinitialize each loop iteration
+        temporal_difference_loss.backward(retain_variables = True)
+        self.optimizer.step[] #update weights / synapses
+
+    """
+    method: updates the neural network for every new state, returns a next action
+    param self: the referenced object
+    param reward: the referenced object
+    param signal: 
+    """
+    def update(self, reward, signal):
+        #signal is signals from 3 sensors, state is signal itself plus orientation (+-)
+        new_state = torch.Tensor(signal).float().unsqueeze(0)
+        #need to update memory with new state
+        self.memory.push(self.last_state, new_state, torch.LongTensor([int(self.last_action)]), torch.LongTensor([float(self.last_reward)]))
+
+
+############################## NOTES ####################################
+
+"""
+To create a fake dimension for a batch, use the unsqueeze method. The fake dimension for
+a batch is zero.
+
+
+"""
