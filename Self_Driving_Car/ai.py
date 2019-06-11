@@ -110,7 +110,7 @@ class Dqn():
     param state: the state on the basis of which q-value is computed and action is chosen
     """
     def select_action(self, state):
-        probabilities = F.softmax(self.model(Variable(state, volatile = True))*7) #temperature = 7, higher temp, higher P(winning q value)
+        probabilities = F.softmax(self.model(Variable(state, volatile = True))*10000) #temperature = 7, higher temp, higher P(winning q value)
         action = probabilities.multinomial()
         return action.data[0,0]
 
@@ -220,4 +220,13 @@ probs of all q values
 Tensors are wrapped into a variable which contain a gradient
 volatile = True excludes gradient from graph, saves memory and increases performance
 temperature is about the certainty with which we decide our action       
+
+
+In order to improve the AI performance, the following steps can be taken:
+
+1. Increase temperature
+2. Increase the number of hidden layers
+3. Increase the number of neurons
+4. Tweak the rewards (make negative rewards more severe)
+
 """
