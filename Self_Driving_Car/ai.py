@@ -110,7 +110,7 @@ class Dqn():
     param state: the state on the basis of which q-value is computed and action is chosen
     """
     def select_action(self, state):
-        probabilities = F.softmax(self.model(Variable(state, volatile = True))*10000) #temperature = 7, higher temp, higher P(winning q value)
+        probabilities = F.softmax(self.model(Variable(state, volatile = True))*100) #temperature, higher temp, higher P(winning q value)
         action = probabilities.multinomial()
         return action.data[0,0]
 
