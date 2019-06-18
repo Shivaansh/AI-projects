@@ -38,7 +38,7 @@ class CNN(nn.Module):
         self.fc2 = nn.Linear(in_features = 40, out_features = num_of_actions)#output, 
 
     """
-    method: counts the number of neurons in an image
+    method: counts the number of neurons in an image. forward propagates in fully connected layers
     param self: reference to the object
     param input_dimension: dimension of the input image
     """
@@ -61,6 +61,27 @@ class CNN(nn.Module):
         #Take all pixels of all channels and put in one vector
         return x.data.view(1, -1).size(1) 
 
+
+    """
+    method: performs forward propagation
+    param self: reference to the object
+    param x: the input image updated during propagation
+    """
+    def forward(self, x):
+
+        # we keep using x repeatedly because x is constantly updated
+        x = F.relu(F.max_pool2d(self.convolution_1(x), 3, 2)) #Conv layer
+        x = F.relu(F.max_pool2d(self.convolution_2(x), 3, 2)) #Hidden layer
+        x = F.relu(F.max_pool2d(self.convolution_3(x), 3, 2)) #Output layer
+
+        #Flatten all pixels of all channels (which becomes input to FCL)
+        x = x.view(x.size(0), -1)
+
+        #break linearity using rectifier function
+        x = F.relu(self.fc1(x)) #go from flattening layer to hidden layer, then activate hidden layer
+        #x becomes output layer
+        x = self.fc2(x)
+        return x
 
 #Apply Deep Convolutional Q-learning
 #REMEMBER TO DOCUMENT THE DIFFERENT COMPONENTS OF THE Q LEARNING SYSTEM
