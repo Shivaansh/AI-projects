@@ -34,8 +34,33 @@ class CNN(nn.Module):
         self.convolution_3 = nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = 3)#layer 2 as input
 
         #Flattening and hidden layer variables (basically, full connections)
-        self.fc1 = nn.Linear(in_features = neuron_count, out_features = 50) #create full connection using Linear method
+        self.fc1 = nn.Linear(in_features = self.neuron_counter((1, 80, 80)), out_features = 50) #create full connection using Linear method
         self.fc2 = nn.Linear(in_features = 40, out_features = num_of_actions)#output, 
+
+    """
+    method: counts the number of neurons in an image
+    param self: reference to the object
+    param input_dimension: dimension of the input image
+    """
+    def neuron_counter(self, input_dimension):
+        #dimensions are 80x80 by default in DOOM
+
+        x = Variable(torch.rand(1, *input_dimension)) #extract elements of tuple input_dimension as a list of args
+        
+        #first layer now activated, propagates to next layer
+        x = self.convolution_1(x) #convolution applied to image
+        x = F.relu(F.max_pool2d(self.convolution_1(x), 3, 2))#max pooling applied: img, kernel_size, stride
+        #relu activates pooled neurons
+
+        #layer 2
+        x = F.relu(F.max_pool2d(self.convolution_2(x), 3, 2))
+
+        #layer 3
+        x = F.relu(F.max_pool2d(self.convolution_3(x), 3, 2)) #this layer needs to be flattened
+
+        #Take all pixels of all channels and put in one vector
+        return x.data.view(1, -1).size(1) 
+
 
 #Apply Deep Convolutional Q-learning
 #REMEMBER TO DOCUMENT THE DIFFERENT COMPONENTS OF THE Q LEARNING SYSTEM
