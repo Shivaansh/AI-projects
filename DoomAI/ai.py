@@ -142,9 +142,17 @@ class DoomBot:
         return actions.data.numpy()
 
 
-#Apply Deep Convolutional Q-learning
+############################################ Apply Deep Convolutional Q-learning
+
+#Get Doom environment, images dimensions according to 1x80x80 BnW image format used above
+doom_environment = image_preprocessing.PreprocessImage(SkipWrapper(4)(ToDiscrete("minimal")(gym.make("ppaquette/DoomCorridor-v0"))), width = 80, height = 80, grayscale = True)
+doom_environment = gym.wrappers.Monitor(doom_environment, "videos", force = True)
+number_actions = doom_environment.action_space.n #get number of actions from doom environment, here equals 7
 #REMEMBER TO DOCUMENT THE DIFFERENT COMPONENTS OF THE Q LEARNING SYSTEM
 
+brain_var = CNN(number_actions)
+body_var = Softmax_Body(T = 1.0)
+ai_agent_var = DoomBot(brain = brain_var, body = body_var)
 
 """
 ######################################## NOTES ############################################
