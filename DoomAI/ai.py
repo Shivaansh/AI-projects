@@ -18,14 +18,15 @@ import experience_replay, image_preprocessing
 #Build AI - brain (CNN + fully connected layers, forward), body, AI
 #TODO: REMEMBER TO DOCUMENT THE DIFFERENT COMPONENTS OF THE AI
 
+
 ## Class: Convolutional neural network with forward propagation method
 class CNN(nn.Module):
     """
-    method: constructor (uses inheritance)
+    method: constructor (uses inheritance), think of as 'eyes' of neural network
     param self: reference to the object
     param num_of_actions: number of actions that can be taken, varies by environment
     """
-    def __init__(self, num_of_actions, ):
+    def __init__(self, num_of_actions):
         super(CNN, self).__init__()
 
         #Convolutional variables TODO play with kernel sizes
@@ -82,6 +83,33 @@ class CNN(nn.Module):
         #x becomes output layer
         x = self.fc2(x)
         return x
+        
+## Class: The body of the AI, which implements the softmax function
+class Softmax_Body(nn.Module):
+
+    """
+    method: constructor (uses inheritance)
+    param self: reference to the object
+    param temperature: the temperature (certainty) of the agent
+    """
+    def __init__(self, temperature):
+        super(Softmax_Body, self).__init__()
+        self.T = temperature #class variable for temperature
+
+    """
+    method: performs forward propagation from brain to the body
+    param self: reference to the object
+    param output: the output signals of the brain (in brain's output layer)
+    """
+    def forward(self, output):
+
+        #get distribution of action probabilities and sample it
+        q_val_probls = F.softmax(output * self.T) #create distribution of probabilites of all action q-values
+
+        # retrieve and return possible actions as a multinomial of q value probabilities
+        playable_actions = q_val_probls.multinomial()
+        return playable_actions
+
 
 #Apply Deep Convolutional Q-learning
 #REMEMBER TO DOCUMENT THE DIFFERENT COMPONENTS OF THE Q LEARNING SYSTEM
