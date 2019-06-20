@@ -112,7 +112,7 @@ class Softmax_Body(nn.Module):
 
 
 ## Class: The AI combines the brain and body
-class DoomBot:
+class Geralt:
 
     """
     method: constructor (uses inheritance)
@@ -152,7 +152,45 @@ number_actions = doom_environment.action_space.n #get number of actions from doo
 
 brain_var = CNN(number_actions)
 body_var = Softmax_Body(T = 1.0)
-ai_agent_var = DoomBot(brain = brain_var, body = body_var)
+ai_agent_var = Geralt(brain = brain_var, body = body_var)
+
+
+
+## Experience replay of up to 10000 states combined with eligibility trace of 10 steps
+n_step_count = experience_replay.NStepProgress(env = doom_environment, ai = ai_agent_var, n_step = 10)
+memory = experience_replay.ReplayMemory(n_steps = n_step_count, capacity = 10000)
+
+# Eligibility trace: implement algorithm found here:
+# minimizes rms error between outputs and targets
+def eligibility_trace(batch):
+    gamma = 0.99 #learning rate
+    inputs = []
+    targets = []
+
+    for step_series in batch:
+
+        #input is a torch tensor created from a numpy array of first and last state of transition of series
+        input = Variable(torch.from_numpy(np.array([step_series[0].state, step_series[-1].state], dtype = np.float32)))
+        
+        #output is the prediction made by the AI, ie, q-values of all states per transition
+        output = brain_var(input) 
+
+        #check if terminal or non terminal state and update reward accordingly
+        cumul_reward = 0.0 if step_series[-1].done else output[1].data.max() #output max from a Torch variable
+
+        for step in reversed(step_series[:-1]): # going from last but one element upto first element
+            cumul_reward = (cumul_reward * gamma) + step.reward
+        state = step_series[0].state #state of first transition
+        target = output[0].data #q value of first step. which is the target q value
+
+        #update target for action selected in first step of series
+        target[step_series[0].action] = cumul_reward
+
+        # update list of inputs and targets, store learning
+        inputs.append(state)
+        targets.append(target)
+
+    return torch.from_numpy(np.array(inputs, dtype = np.float32)), torch.stack(targets)
 
 """
 ######################################## NOTES ############################################
@@ -167,4 +205,9 @@ To format images:
 3. Convert tensor to torch variable containing tensor and gradient for dynamic graphs
 
 tensors by definition are arrays of a single type
+
+Will be using Asynchronous n-step Q-learning: cumulative rewards and experiences on n-steps instead of 1
+
+Only need to update first step of series, as Ai trains on 10 steps, input is first of 10 steps and we get target in this state only
+Learning happens after 10 steps are reached
 """
