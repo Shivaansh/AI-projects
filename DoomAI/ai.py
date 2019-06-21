@@ -8,7 +8,6 @@ from torch.autograd import Variable #dynamic references, fast computations
 #For OpenAI gym
 import gym
 from gym.wrappers import SkipWrapper
-
 #Contains Doom environemnt, movement and atttack actions
 from ppaquette_gym_doom.wrappers.action_space import ToDiscrete
 
@@ -230,6 +229,40 @@ move_average = MA(100)
 
 
 ######################################### TRAINING ########################################
+
+loss_fn = nn.MSELoss() #Regression generally uses Mean Square Error
+optimizer = optim.Adam(brain_var.parameters(), lr = 0.001) #small learning rate for more exploration
+num_of_epochs = 100
+
+
+
+for epoch in range(1, num_of_epochs+1):
+    memory.run_steps(200, 10) #200 runs of 10 steps per epoch
+    for batch in memory.sample_batch(128): #return batches of series of 10 step transitions, size 128 (remember this is a BATCH), every 128 steps
+        #10 step eliginility trace running in every batch
+        inputs, targets = eligibility_trace(batch)
+        inputs, targets = Variable(inputs), Variable(targets)
+        predictions = brain_var(inputs) #inputs sent to CNN, predictions are output
+        loss_error = loss_fn(predictions, targets)
+        optimizer.zero_grad() #initialize optimizer
+        loss_error.backward() #back propagation
+        optimizer.step() #update weights
+
+    #Compute average reward per epoch
+    reward_steps = n_step_count.rewards_steps()
+    move_average.add_cumulative_reward(reward_steps)
+    average_reward = move_average.reward_average()
+    #
+
+    print("*Epoch: %s, Average reward is: %s" % (str(epoch), str(average_reward)))
+
+    if(average_reward >= 1500):
+        print("WOW YOU WIN!!!")
+        break
+
+#Close DOOM environment
+doom_environment.close()
+
 
 
 """
