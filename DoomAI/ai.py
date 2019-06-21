@@ -1,4 +1,4 @@
-import numpy as numpy #for arrays
+import numpy as np #for arrays
 import torch #PyTorch
 import torch.nn as nn #Neural Network, convolution etc (creators)
 import torch.nn.functional as F #contains NN functions like max pooling (methods)
@@ -155,7 +155,6 @@ body_var = Softmax_Body(T = 1.0)
 ai_agent_var = Geralt(brain = brain_var, body = body_var)
 
 
-
 ## Experience replay of up to 10000 states combined with eligibility trace of 10 steps
 n_step_count = experience_replay.NStepProgress(env = doom_environment, ai = ai_agent_var, n_step = 10)
 memory = experience_replay.ReplayMemory(n_steps = n_step_count, capacity = 10000)
@@ -192,6 +191,47 @@ def eligibility_trace(batch):
 
     return torch.from_numpy(np.array(inputs, dtype = np.float32)), torch.stack(targets)
 
+## Class: moving average
+class MA:
+    """
+    method: constructor (uses inheritance)
+    param self: reference to the object
+    param size: size of rewards list to compute average of
+    """
+    def __init__(self, size):
+        self.reward_list = []
+        self.size = size
+        
+    """
+    method: adds rewards to list of rewards
+    param self: reference to the object
+    param rewards: cumulative reward to append to reward list (after every n steps, according to eligibility trace)
+    """
+    def add_cumulative_reward(self, rewards):
+        
+        #if rewards are a list
+        if(isinstance(rewards), list):
+            self.reward_list += rewards 
+        else:
+            self.reward_list.append(rewards)
+
+        #ensure a max of 100 elements in list
+        while(len(self.reward_list) > self.size):
+            del self.reward_list[0]
+
+    """
+    method: compute average of rewards
+    param self: reference to the object
+    """
+    def reward_average(self):
+        return np.mean(self.reward_list) #from numpy
+
+move_average = MA(100)
+
+
+######################################### TRAINING ########################################
+
+
 """
 ######################################## NOTES ############################################
 in_channels is set to 1, as the AI only analyzes enemies in black and white. 3 channels needed for RGB images
@@ -210,4 +250,6 @@ Will be using Asynchronous n-step Q-learning: cumulative rewards and experiences
 
 Only need to update first step of series, as Ai trains on 10 steps, input is first of 10 steps and we get target in this state only
 Learning happens after 10 steps are reached
+
+you can add lists in python, but a single element is appended to a python list
 """
